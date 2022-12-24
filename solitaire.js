@@ -16,6 +16,7 @@ const ranks = [
   "K",
 ];
 
+let gameOver;
 let deck = [];
 let stackContainers = [];
 let playContainers = [];
@@ -23,9 +24,9 @@ let pileStacks = [[], [], [], [], [], [], []];
 let discards = [];
 let playStacks = [[], [], [], []];
 
-let deckPile = document.getElementById("deck-pile");
-let deckPileDisplay = document.getElementById("deck-pile-display");
-let discardPile = document.getElementById("discard-pile");
+const deckPile = document.getElementById("deck-pile");
+const deckPileDisplay = document.getElementById("deck-pile-display");
+const discardPile = document.getElementById("discard-pile");
 
 deckPile.addEventListener("click", flipCard);
 
@@ -41,6 +42,10 @@ class Card {
     this.suit = suit;
     this.id = id;
     this.faceUp = false;
+  }
+
+  in(array) {
+    return array.indexOf(this) != -1;
   }
 
   getHTML() {
@@ -61,6 +66,18 @@ class Card {
     return cardDiv;
   }
 }
+
+startGame();
+
+function startGame() {
+  gameOver = false;
+  buildDeck();
+  shuffleDeck();
+  dealGame();
+  render();
+}
+
+function restartGame() {}
 
 function buildDeck() {
   let id = 0;
@@ -91,7 +108,6 @@ function dealGame() {
       pileStacks[pileToRight].push(card);
     }
   }
-  render();
 }
 
 function flipCard() {
@@ -103,75 +119,49 @@ function flipCard() {
     card.faceUp = true;
     discards.push(card);
   }
-  render(); //should just call below for efficiency
-  //renderDeckAndDiscard();
+  render();
 }
 
 function moveCard(event) {
+  if (gameOver) return;
   let cardID = event.target.id;
   let card;
+  let stackContainingCard;
 
-  //card is found in discard
   if (discards.length != 0 && discards[discards.length - 1].id == cardID) {
     card = discards[discards.length - 1];
-    if (tryToPlay(card)) {
-      discards.pop();
-    } else {
-      if (tryToMoveCardOntoStacks(card)) discards.pop();
-    }
-
-    render();
-    return; //return so you don't keep searching
+    stackContainingCard = discards;
   }
-
-  //card is found in playStacks
   for (let stack of playStacks)
     if (stack.length !== 0 && stack[stack.length - 1].id == cardID) {
       card = stack[stack.length - 1];
-      if (tryToMoveCardOntoStacks(card)) {
-        playStacks[suits.indexOf(card.suit)].pop();
-        render();
-        return;
-      }
+      stackContainingCard = stack;
     }
-
-  //card is found in piles
-
   for (let pile of pileStacks)
     for (let currentCard of pile)
       if (currentCard.id == cardID) {
         card = currentCard;
-        if (checkFaceDownAndTop(card, pile)) return;
-        if (checkFaceUpAndTop(card, pile))
-          if (tryToPlay(card)) {
-            pile.pop();
-            render();
-            return;
-          }
-        if (tryToMoveToAnotherStack(card, pile)) render();
+        stackContainingCard = pile;
       }
+
+  tryToPlay(card, stackContainingCard);
+  tryToMoveToStack(card, stackContainingCard);
+  tryToTurnOver(card, stackContainingCard);
+  render();
+  checkWin();
 }
 
-function checkFaceDownAndTop(card, pile) {
-  if (!card.faceUp && pile[pile.length - 1] == card) {
-    card.faceUp = true;
-    render();
-    return true;
-  }
-}
+function tryToPlay(card, stackContainingCard) {
+  //first check that it's a faceup card and on top of it's stack, otherwise can't be played
+  if (!card.faceUp || !onTop(card, stackContainingCard)) return;
 
-function checkFaceUpAndTop(card, pile) {
-  return card.faceUp && pile[pile.length - 1] == card;
-}
-
-function tryToPlay(card) {
   let playStack = playStacks[suits.indexOf(card.suit)];
 
   if (playStack.length == 0) {
+    //special case
     if (card.rank == "A") {
-      //special case
       playStack.push(card);
-      return true;
+      stackContainingCard.pop();
     }
   } else {
     let stackCard = playStack[playStack.length - 1];
@@ -179,61 +169,72 @@ function tryToPlay(card) {
     let stackRankSpot = ranks.indexOf(stackCard.rank);
     if (cardRankSpot == stackRankSpot + 1) {
       playStack.push(card);
-      return true;
+      stackContainingCard.pop();
     }
-    return false;
   }
 }
 
-function tryToMoveCardOntoStacks(card) {
-  //coming from discard or playstacks only - another pile is more complicated
+function tryToMoveToStack(card, stackContainingCard) {
+  if (!card.faceUp || !card.in(stackContainingCard)) return;
+
+  //fix king shouldn't be separate...
+
   for (let stack of pileStacks) {
-    if (stack.length == 0) {
-      if (card.rank == "K") {
-        stack.push(card);
-        return true;
-      }
-    } else {
+    if (stack.length == 0 && card.rank == "K") {
+      moveStack(stack);
+      return;
+    } else if (stack.length != 0) {
       let cardInStack = stack[stack.length - 1];
-      if (!cardInStack.faceUp) return;
-      else {
-        if (
-          ranks.indexOf(card.rank) == ranks.indexOf(cardInStack.rank) - 1 &&
-          !sameColor(card, cardInStack)
-        ) {
-          stack.push(card);
-          return true;
-        }
+      if (
+        cardInStack.faceUp &&
+        ranks.indexOf(card.rank) == ranks.indexOf(cardInStack.rank) - 1 &&
+        !sameColor(card, cardInStack)
+      ) {
+        moveStack(stack);
+        return;
       }
     }
   }
-  return false;
+
+  function moveStack(stack) {
+    {
+      let cardPosition = stackContainingCard.indexOf(card);
+      let toMove = stackContainingCard.slice(cardPosition);
+      for (let card of toMove) stack.push(card);
+      for (
+        let index = stackContainingCard.length - 1;
+        index >= cardPosition;
+        index--
+      ) {
+        stackContainingCard.pop();
+      }
+      return;
+    }
+  }
 }
 
-function tryToMoveToAnotherStack(card, pile) {
-  //not trying to play it
-  if (!card.faceUp) return;
+function tryToTurnOver(card, stackContainingCard) {
+  if (!card.faceUp && onTop(card, stackContainingCard)) card.faceUp = true;
+}
 
-  for (let stack of pileStacks) {
-    if (stack.length != 0) {
-      let cardInStack = stack[stack.length - 1];
-      if (!cardInStack.faceUp) return;
-      else {
-        if (
-          ranks.indexOf(card.rank) == ranks.indexOf(cardInStack.rank) - 1 &&
-          !sameColor(card, cardInStack)
-        ) {
-          let cardPosition = pile.indexOf(card);
-          let toMove = pile.slice(cardPosition);
-          for (let card of toMove) stack.push(card);
+function onTop(card, stack) {
+  return stack.length != 0 && stack[stack.length - 1] == card;
+}
 
-          for (let index = pile.length - 1; index >= cardPosition; index--)
-            pile.pop();
+function sameColor(card1, card2) {
+  return (
+    card1.suit == card2.suit ||
+    suits.indexOf(card1.suit) + suits.indexOf(card2.suit) == 3
+  ); //suit indeces are 0, 1, 2, 3, so 0 and 3 or 1 and 2
+}
 
-          return true;
-        }
-      }
-    }
+function checkWin() {
+  if (
+    playStacks.reduce((accumulator, stack) => accumulator + stack.length, 0) ==
+    52
+  ) {
+    console.log("you win!");
+    gameOver = true;
   }
 }
 
@@ -256,7 +257,6 @@ function renderPileStacks() {
 
 function renderDeckAndDiscard() {
   if (deck.length == 0) {
-    // deckPile.removeChild(deckPileDisplay);
     deckPile.innerHTML = "Click";
   }
   if (deck.length > 0 && deckPile.querySelector("deck-pile-display") == null)
@@ -276,18 +276,6 @@ function renderPlayStacks() {
   }
 }
 
-function sameColor(card1, card2) {
-  return (
-    card1.suit == card2.suit ||
-    suits.indexOf(card1.suit) + suits.indexOf(card2.suit) == 3
-  ); //suit indeces are 0, 1, 2, 3, so 0 and 3 or 1 and 2
-}
-
-buildDeck();
-shuffleDeck();
-dealGame();
-
-//clean up code - move to methods
 //comment the code - as this will be a project and I plan to keep improving it
 
 //create a reset button, test for win
