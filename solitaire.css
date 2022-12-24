@@ -1,0 +1,82 @@
+body {
+  background-color: green;
+  user-select: none;
+  margin: 20px;
+  font-family: "Helvetica";
+}
+
+.card {
+  width: 100px;
+  height: 140px;
+  background-color: white;
+  border-radius: 7px;
+  font-size: 30px;
+  font-weight: bold;
+  text-align: center;
+  position: absolute;
+  box-shadow: 0 0 2px black;
+  /* position absolute over position relative is working */
+}
+
+.red {
+  color: red;
+}
+
+.black {
+  color: black;
+}
+
+.card::before {
+  position: absolute;
+  content: attr(data-value);
+  top: 90px;
+  left: 50px;
+  transform: translate(-50%, -50%);
+  font-size: 90px;
+}
+
+.card::after {
+  content: attr(data-value);
+  margin-left: 36px;
+}
+
+.back {
+  background-image: linear-gradient(to right top, red, purple, blue);
+  width: 100px;
+  height: 140px;
+  border-radius: 7px;
+  position: absolute;
+  box-shadow: 0 0 2px black;
+}
+
+.game-container {
+  display: grid;
+  grid-template-columns: repeat(7, 100px);
+  column-gap: 10px;
+  row-gap: 10px;
+}
+
+#discard-pile {
+  grid-column: span 2;
+}
+
+#deck-pile {
+  font-size: 30px;
+  color: rgba(0, 0, 0, 0.4);
+  text-align: center;
+}
+
+.stack {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100px;
+  height: 140px;
+  background-color: rgba(200, 200, 200, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.4);
+
+  border-radius: 7px;
+  font-size: 60px;
+  color: rgba(0, 0, 0, 0.4);
+}
