@@ -50,6 +50,11 @@ body {
 }
 
 .game-container {
+  display: flex;
+  align-items: flex-start;
+}
+
+.board-container {
   display: grid;
   grid-template-columns: repeat(7, 100px);
   column-gap: 10px;
@@ -79,4 +84,36 @@ body {
   border-radius: 7px;
   font-size: 60px;
   color: rgba(0, 0, 0, 0.4);
+}
+
+#restart {
+  /* margin: 50px 100px; */
+  padding: 13px;
+  border-radius: 12px;
+  border: 1px solid black;
+  font-size: 20px;
+  width: 120px;
+
+  cursor: pointer;
+  background-color: yellow;
+  white-space: nowrap;
+  margin-bottom: 50px;
+}
+
+.game-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  width: 100%;
+  height: 290px;
+  /* margin: 50px 100px; */
+}
+
+#win-label {
+  font-size: 60px;
+  height: 100px;
+  width: 300px;
+  text-align: center;
+  white-space: nowrap;
 }

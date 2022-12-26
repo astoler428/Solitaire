@@ -1,3 +1,6 @@
+//clean up code by having a move function which moves a card from one stack to another
+//previously verified it can be moved and then just execute - genral for all cards behind
+//change card to have a data value of location set to deck, discard, stack#, pile# rather than looking for it
 const suits = ["♣", "♦", "♥", "♠"];
 const colors = ["red", "black"];
 const ranks = [
@@ -17,24 +20,21 @@ const ranks = [
 ];
 
 let gameOver;
-let deck = [];
+let deck;
 let stackContainers = [];
 let playContainers = [];
-let pileStacks = [[], [], [], [], [], [], []];
-let discards = [];
-let playStacks = [[], [], [], []];
+let pileStacks;
+let discards;
+let playStacks;
 
 const deckPile = document.getElementById("deck-pile");
 const deckPileDisplay = document.getElementById("deck-pile-display");
 const discardPile = document.getElementById("discard-pile");
+const restartBtn = document.getElementById("restart");
+const winLabel = document.getElementById("win-label");
 
 deckPile.addEventListener("click", flipCard);
-
-for (let i = 0; i <= 6; i++)
-  stackContainers.push(document.getElementById("stack" + i));
-
-for (let i = 0; i <= 3; i++)
-  playContainers.push(document.getElementById("play-stack" + i));
+restartBtn.addEventListener("click", restartGame);
 
 class Card {
   constructor(rank, suit, id) {
@@ -44,9 +44,12 @@ class Card {
     this.faceUp = false;
   }
 
-  in(array) {
-    return array.indexOf(this) != -1;
+  in(pile) {
+    return pile.indexOf(this) != -1;
   }
+
+  //render will call this for each card in one of the piles
+  //display based on face up or face down
 
   getHTML() {
     let cardDiv = document.createElement("div");
@@ -70,6 +73,18 @@ class Card {
 startGame();
 
 function startGame() {
+  //initializes arrays containing the html elements to be rendered
+  for (let i = 0; i <= 6; i++)
+    stackContainers.push(document.getElementById("stack" + i));
+
+  for (let i = 0; i <= 3; i++)
+    playContainers.push(document.getElementById("play-stack" + i));
+
+  //these array store card objects that are in the piles
+  pileStacks = [[], [], [], [], [], [], []];
+  discards = [];
+  playStacks = [[], [], [], []];
+
   gameOver = false;
   buildDeck();
   shuffleDeck();
@@ -77,9 +92,15 @@ function startGame() {
   render();
 }
 
-function restartGame() {}
+function restartGame() {
+  stackContainers = [];
+  playContainers = [];
+  winLabel.innerHTML = "";
+  startGame();
+}
 
 function buildDeck() {
+  deck = [];
   let id = 0;
   for (let rank of ranks)
     for (let suit of suits) deck.push(new Card(rank, suit, id++));
@@ -110,6 +131,8 @@ function dealGame() {
   }
 }
 
+//flips top card off deck and puts it in discard pile
+//takes cards off front of deck array and adds to back of discard array so when deck is reset to discards, it's in order
 function flipCard() {
   if (deck.length == 0) {
     deck = discards;
@@ -225,7 +248,7 @@ function sameColor(card1, card2) {
   return (
     card1.suit == card2.suit ||
     suits.indexOf(card1.suit) + suits.indexOf(card2.suit) == 3
-  ); //suit indeces are 0, 1, 2, 3, so 0 and 3 or 1 and 2
+  ); //suit indeces are 0, 1, 2, 3, so 0 and 3 or 1 and 2 are same
 }
 
 function checkWin() {
@@ -233,11 +256,10 @@ function checkWin() {
     playStacks.reduce((accumulator, stack) => accumulator + stack.length, 0) ==
     52
   ) {
-    console.log("you win!");
+    winLabel.innerHTML = "You win!"; //change to variable and have render set label to variable
     gameOver = true;
   }
 }
-
 function render() {
   renderDeckAndDiscard();
   renderPlayStacks();
@@ -278,6 +300,4 @@ function renderPlayStacks() {
 
 //comment the code - as this will be a project and I plan to keep improving it
 
-//create a reset button, test for win
-
-//improvements: sound, animation, drag / drop, etc.
+//improvements: sound, animation, drag / drop, undo??? etc.
