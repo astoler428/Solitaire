@@ -21,8 +21,9 @@ const ranks = [
 
 let gameOver;
 let deck;
-let stackContainers = [];
-let playContainers = [];
+let fullDeckInIDorder;
+let stackContainers;
+let playContainers;
 let pileStacks;
 let discards;
 let playStacks;
@@ -37,15 +38,17 @@ deckPile.addEventListener("click", flipCard);
 restartBtn.addEventListener("click", restartGame);
 
 class Card {
-  constructor(rank, suit, id) {
+  constructor(rank, suit, location, id) {
     this.rank = rank;
     this.suit = suit;
+    this.location = location;
     this.id = id;
     this.faceUp = false;
   }
 
-  in(pile) {
-    return pile.indexOf(this) != -1;
+  onTop() {
+    let stack = this.location;
+    return stack[stack.length - 1] === this;
   }
 
   //render will call this for each card in one of the piles
@@ -73,6 +76,8 @@ class Card {
 startGame();
 
 function startGame() {
+  stackContainers = [];
+  playContainers = [];
   //initializes arrays containing the html elements to be rendered
   for (let i = 0; i <= 6; i++)
     stackContainers.push(document.getElementById("stack" + i));
@@ -93,17 +98,21 @@ function startGame() {
 }
 
 function restartGame() {
-  stackContainers = [];
-  playContainers = [];
   winLabel.innerHTML = "";
   startGame();
 }
 
 function buildDeck() {
   deck = [];
+  fullDeckInIDorder = [];
+
   let id = 0;
   for (let rank of ranks)
-    for (let suit of suits) deck.push(new Card(rank, suit, id++));
+    for (let suit of suits) {
+      let card = new Card(rank, suit, null, id++);
+      deck.push(card);
+      fullDeckInIDorder.push(card); //used to location cards by ID;
+    }
 }
 
 function shuffleDeck() {
@@ -116,17 +125,19 @@ function shuffleDeck() {
 }
 
 function dealGame() {
-  for (let pile = 0; pile < pileStacks.length; pile++) {
+  for (let pileNum = 0; pileNum < pileStacks.length; pileNum++) {
     let card = deck.pop();
     card.faceUp = true;
-    pileStacks[pile].push(card);
+    pileStacks[pileNum].push(card);
+    card.location = pileStacks[pileNum];
     for (
-      let pileToRight = pile + 1;
+      let pileToRight = pileNum + 1;
       pileToRight < pileStacks.length;
       pileToRight++
     ) {
       let card = deck.pop();
       pileStacks[pileToRight].push(card);
+      card.location = pileStacks[pileToRight];
     }
   }
 }
@@ -141,70 +152,71 @@ function flipCard() {
     let card = deck.shift();
     card.faceUp = true;
     discards.push(card);
+    card.location = discards;
   }
   render();
 }
 
 function moveCard(event) {
   if (gameOver) return;
-  let cardID = event.target.id;
-  let card;
-  let stackContainingCard;
+  let card = fullDeckInIDorder[event.target.id];
+  console.log(card);
 
-  if (discards.length != 0 && discards[discards.length - 1].id == cardID) {
-    card = discards[discards.length - 1];
-    stackContainingCard = discards;
-  }
-  for (let stack of playStacks)
-    if (stack.length !== 0 && stack[stack.length - 1].id == cardID) {
-      card = stack[stack.length - 1];
-      stackContainingCard = stack;
-    }
-  for (let pile of pileStacks)
-    for (let currentCard of pile)
-      if (currentCard.id == cardID) {
-        card = currentCard;
-        stackContainingCard = pile;
-      }
-
-  tryToPlay(card, stackContainingCard);
-  tryToMoveToStack(card, stackContainingCard);
-  tryToTurnOver(card, stackContainingCard);
+  //conditionally checking tryToMoveToStack only if tryToPlay is false
+  !tryToPlay(card) && tryToMoveToStack(card);
+  tryToTurnOver(card);
   render();
   checkWin();
 }
 
-function tryToPlay(card, stackContainingCard) {
+function move(card, to) {
+  let stackContainingCard = card.location;
+
+  let cardPosition = stackContainingCard.indexOf(card);
+  let toMove = stackContainingCard.slice(cardPosition);
+  for (let card of toMove) {
+    to.push(card);
+    card.location = to;
+  }
+  for (
+    let index = stackContainingCard.length - 1;
+    index >= cardPosition;
+    index--
+  ) {
+    stackContainingCard.pop();
+  }
+}
+
+function tryToPlay(card) {
   //first check that it's a faceup card and on top of it's stack, otherwise can't be played
-  if (!card.faceUp || !onTop(card, stackContainingCard)) return;
+  if (!card.faceUp || !card.onTop()) return;
 
   let playStack = playStacks[suits.indexOf(card.suit)];
 
   if (playStack.length == 0) {
     //special case
     if (card.rank == "A") {
-      playStack.push(card);
-      stackContainingCard.pop();
+      move(card, playStack);
+      return true;
     }
   } else {
     let stackCard = playStack[playStack.length - 1];
     let cardRankSpot = ranks.indexOf(card.rank);
     let stackRankSpot = ranks.indexOf(stackCard.rank);
     if (cardRankSpot == stackRankSpot + 1) {
-      playStack.push(card);
-      stackContainingCard.pop();
+      move(card, playStack);
+      return true;
     }
   }
+  return false;
 }
 
-function tryToMoveToStack(card, stackContainingCard) {
-  if (!card.faceUp || !card.in(stackContainingCard)) return;
-
-  //fix king shouldn't be separate...
+function tryToMoveToStack(card) {
+  if (!card.faceUp) return;
 
   for (let stack of pileStacks) {
     if (stack.length == 0 && card.rank == "K") {
-      moveStack(stack);
+      move(card, stack);
       return;
     } else if (stack.length != 0) {
       let cardInStack = stack[stack.length - 1];
@@ -213,35 +225,15 @@ function tryToMoveToStack(card, stackContainingCard) {
         ranks.indexOf(card.rank) == ranks.indexOf(cardInStack.rank) - 1 &&
         !sameColor(card, cardInStack)
       ) {
-        moveStack(stack);
+        move(card, stack);
         return;
       }
     }
   }
-
-  function moveStack(stack) {
-    {
-      let cardPosition = stackContainingCard.indexOf(card);
-      let toMove = stackContainingCard.slice(cardPosition);
-      for (let card of toMove) stack.push(card);
-      for (
-        let index = stackContainingCard.length - 1;
-        index >= cardPosition;
-        index--
-      ) {
-        stackContainingCard.pop();
-      }
-      return;
-    }
-  }
 }
 
-function tryToTurnOver(card, stackContainingCard) {
-  if (!card.faceUp && onTop(card, stackContainingCard)) card.faceUp = true;
-}
-
-function onTop(card, stack) {
-  return stack.length != 0 && stack[stack.length - 1] == card;
+function tryToTurnOver(card) {
+  if (!card.faceUp && card.onTop()) card.faceUp = true;
 }
 
 function sameColor(card1, card2) {
