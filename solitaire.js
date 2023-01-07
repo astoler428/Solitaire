@@ -422,5 +422,7 @@ function animateCardFlip(card, cardDiv) {
 
 /*
 strange glitch where the bouding rect dimension are off by 1 px or so
-clean up code
+clean up code - simplify complex calculations, excess passing of variables, repetition, comment use of extra random variables like z-index, etc.
+add sound
+add drag and drop
 */
