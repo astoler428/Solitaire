@@ -63,6 +63,7 @@ body {
 
 #discard-pile {
   grid-column: span 2;
+  position: relative;
 }
 
 #deck-pile {
